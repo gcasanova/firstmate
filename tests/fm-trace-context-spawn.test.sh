@@ -36,9 +36,16 @@ case "$*" in
   *"#{pane_current_path}"*) printf '%s\n' "${FM_FAKE_PANE_PATH:-}"; exit 0 ;;
 esac
 case "${1:-}" in
-  display-message) printf 'firstmate\n'; exit 0 ;;
+  display-message)
+    case "$*" in
+      *'#{pane_current_command}'*) printf 'zsh\n' ;;
+      *) printf 'firstmate\n' ;;
+    esac
+    exit 0
+    ;;
   list-windows)
     [ -z "${FM_FAKE_DUPLICATE_WINDOW:-}" ] || printf '%s\n' "$FM_FAKE_DUPLICATE_WINDOW"
+    [ -z "${FM_FAKE_RELAUNCH_WINDOW:-}" ] || printf '%s\n' "$FM_FAKE_RELAUNCH_WINDOW"
     exit 0
     ;;
   has-session|new-session|new-window|kill-window) exit 0 ;;
@@ -118,7 +125,14 @@ make_spawn_case() {
 # environment enables or disables trace context.
 run_spawn() {
   local home=$1 wt=$2 fakebin=$3 launchlog=$4
+  local mode_args=(--mode no-mistakes --yolo off) relaunch_window=
   shift 4
+  case " $* " in
+    *" --relaunch "*)
+      mode_args=()
+      relaunch_window="fm-$1"
+      ;;
+  esac
   : > "$launchlog"
   # A claude spawn pre-registers workspace trust in the launching user's own
   # store (bin/fm-claude-trust.sh), so it runs against a throwaway HOME;
@@ -129,12 +143,13 @@ run_spawn() {
     FM_STATE_OVERRIDE="$home/state" FM_DATA_OVERRIDE="$home/data" \
     FM_PROJECTS_OVERRIDE="$home/projects" FM_CONFIG_OVERRIDE="$home/config" \
     FM_SPAWN_NO_GUARD=1 FM_FAKE_PANE_PATH="$wt" TMUX="fake,1,0" \
+    FM_FAKE_RELAUNCH_WINDOW="$relaunch_window" \
     FM_FAKE_TRACEPARENT_SEND_FAIL="${FM_FAKE_TRACEPARENT_SEND_FAIL:-0}" \
     FM_FAKE_TRACEPARENT_SEND_UNSAFE="${FM_FAKE_TRACEPARENT_SEND_UNSAFE:-0}" \
     FM_FAKE_TRACE_METADATA_APPEND_FAIL="${FM_FAKE_TRACE_METADATA_APPEND_FAIL:-0}" \
     FM_FAKE_META_PATH="$home/state/$1.meta" \
     FM_FAKE_LAUNCH_LOG="$launchlog" PATH="$fakebin:$PATH" \
-    "$SPAWN" "$@" --mode no-mistakes --yolo off 2>&1
+    "$SPAWN" "$@" "${mode_args[@]}" 2>&1
 }
 
 # Same, but with an explicit FM_TRACE_CONTEXT override, to prove the env decides.
@@ -563,7 +578,7 @@ test_two_routed_tasks_through_one_secondmate_root_distinct_traces() {
 
   # Same environment, same task: a relaunch must reuse task A's recorded
   # carrier verbatim, so the per-task boundary never costs recovery identity.
-  out=$(TRACEPARENT="$sm_tp" run_spawn "$sm" "$wt_a" "$fakebin" "$log_a" "$id_a" "$proj_a")
+  out=$(TRACEPARENT="$sm_tp" run_spawn "$sm" "$wt_a" "$fakebin" "$log_a" "$id_a" --relaunch)
   status=$?
   expect_code 0 "$status" "routed task A relaunch should succeed"
   relaunch_tp=$(meta_traceparent "$sm/state/$id_a.meta")

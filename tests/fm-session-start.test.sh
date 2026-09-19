@@ -2640,7 +2640,13 @@ EOF
   block_count=$(printf '%s\n' "$out" | grep -c '^SUPERVISION OPERATING INSTRUCTIONS - primary harness:')
   [ "$block_count" -eq 1 ] || fail "expected exactly one supervision block, got $block_count"
   assert_contains "$out" "SUPERVISION OPERATING INSTRUCTIONS - primary harness: omp" "omp supervision block missing"
-  assert_contains "$out" "Mode: omp (Oh My Pi) extension background wake." "omp snippet missing from session start"
+  assert_not_contains "$out" "Mode: omp (Oh My Pi) extension background wake." \
+    "the static protocol body must not be reprinted into the startup digest"
+  assert_contains "$out" "Detailed protocol for this harness is NOT reprinted here." \
+    "startup digest lost the protocol pointer"
+  assert_contains "$out" "docs/supervision-protocols/omp.md" \
+    "startup digest did not name the OMP protocol source"
+  assert_contains "$out" "Current state:" "startup digest lost the dynamic supervision state"
   assert_contains "$out" "OMP_WATCH_EXTENSION: not loaded" "omp extension load diagnostic missing"
   assert_contains "$out" "so $root/.omp/extensions/fm-primary-turnend-guard.ts and $root/.omp/extensions/fm-primary-omp-watch.ts auto-load" "omp diagnostic omits the two tracked extension paths"
   assert_not_contains "$out" "PI_WATCH_EXTENSION" "omp primary must not receive the Pi diagnostic"
