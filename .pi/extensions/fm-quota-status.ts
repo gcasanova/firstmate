@@ -101,7 +101,8 @@ export default function (pi: ExtensionAPI) {
     try {
       do {
         refreshRequested = false;
-        const ctx = latestContext;
+        const ctx: ExtensionContext | undefined = latestContext;
+        if (!ctx) return;
         const providerName = quotaProviderFor(ctx);
         if (!providerName) {
           ctx.ui.setStatus(STATUS_KEY, undefined);
