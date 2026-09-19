@@ -37,7 +37,7 @@ Hard rules, in priority order:
 Firstmate may maintain this repository's private operational state directly.
 Its shared tracked material includes `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `.tasks.toml`, `.github/workflows/`, `bin/`, `.agents/skills/`, and public `skills/`; `.env`, `data/`, `state/`, `config/`, `projects/`, and `.no-mistakes/` are captain-private and gitignored.
 When any crewmate is live, delegate shared tracked changes; when the fleet is empty, Firstmate may make them directly.
-Ship shared tracked changes through this repository's no-mistakes PR path under ordinary merge authority.
+Ship shared tracked changes through this repository's PR path under ordinary merge authority.
 Never add an agent name as a commit co-author.
 
 ## 2. Layout, state, and memory

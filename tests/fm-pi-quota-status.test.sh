@@ -5,13 +5,7 @@ set -u
 # shellcheck source=tests/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-TMP_ROOT=$(fm_test_tmproot fm-pi-quota-status)
 EXT="$ROOT/.pi/extensions/fm-quota-status.ts"
-
-cleanup() {
-  fm_test_cleanup
-}
-trap cleanup EXIT
 
 run_extension_test() {
   local out status
