@@ -56,7 +56,7 @@
 #          treehouse is also MISSING when its installed version lacks
 #          "treehouse get --lease" support.
 #          no-mistakes is also MISSING when its installed version is older than
-#          1.46.0 (structured pipeline attestation floor; see CONTRIBUTING.md).
+#          1.46.0; the compatibility floor is owned below.
 #          The AXI-family floor policy is owned beside GH_AXI_MIN and
 #          LAVISH_AXI_MIN below; the per-tool owners point there. An installed
 #          essential build below its floor reports MISSING like no-mistakes.
@@ -67,10 +67,9 @@
 #          tasks-axi and quota-axi are essential bootstrap tools.
 #          A compatible tasks-axi default backend is silent.
 #          quota-axi is required for the agent-owned dispatch-profile array
-#          procedure in AGENTS.md section 4 and
-#          .agents/skills/quota-array-dispatch/SKILL.md.
+#          procedure in .agents/skills/quota-array-dispatch/SKILL.md.
 #          On a primary home, the locked mutable path materializes the visible
-#          default config/startup-memory-budget=7500 when absent. It never
+#          default config/startup-memory-budget=5000 when absent. It never
 #          guesses at malformed or unsafe existing files, and secondmate homes
 #          await the primary-authoritative inherited value instead of creating
 #          their own.
@@ -1370,6 +1369,7 @@ backlog_record_reconcile() {
 }
 
 startup_memory_budget_setup() {
+  local budget_detail
   # Primary bootstrap owns default publication. A secondmate is deliberately
   # passive here because its setting must converge from the primary through the
   # inherited-local-material contract rather than becoming a local authority.
@@ -1378,6 +1378,14 @@ startup_memory_budget_setup() {
   fi
   if ! fm_startup_memory_budget_materialize "$CONFIG"; then
     echo "STARTUP_MEMORY_BUDGET: invalid config/$FM_STARTUP_MEMORY_BUDGET_FILE - $FM_STARTUP_MEMORY_BUDGET_ERROR"
+    return 0
+  fi
+  # Validating that the value parses proved not to protect anything: this home's
+  # startup memory reached 99.9% of its budget without one diagnostic. Report the
+  # actual overrun so growth is detected rather than merely measurable. Detection
+  # only - bootstrap never prunes curated memory.
+  if ! budget_detail=$("$SCRIPT_DIR/fm-startup-memory-budget.sh" check 2>&1); then
+    echo "STARTUP_MEMORY_BUDGET: over budget - $(printf '%s' "$budget_detail" | grep -c 'status=over-budget\|budget_status=over-budget') item(s); run bin/fm-startup-memory-budget.sh check"
   fi
 }
 

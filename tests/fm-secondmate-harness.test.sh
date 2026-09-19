@@ -1403,9 +1403,9 @@ test_bootstrap_sweep_materializes_and_inherits_memory_default() {
   [ -e "$w/sm/config/crew-dispatch.json" ] && fail "default-only sweep created a home crew-dispatch.json"
   [ -e "$w/sm/config/crew-harness" ] && fail "default-only sweep created a home crew-harness"
   [ -e "$w/sm/config/backend" ] && fail "default-only sweep created a home backend"
-  [ "$(cat "$w/home/config/startup-memory-budget")" = 7500 ] \
+  [ "$(cat "$w/home/config/startup-memory-budget")" = 5000 ] \
     || fail "primary bootstrap did not materialize the startup-memory default"
-  [ "$(cat "$w/sm/config/startup-memory-budget")" = 7500 ] \
+  [ "$(cat "$w/sm/config/startup-memory-budget")" = 5000 ] \
     || fail "default-only sweep did not converge startup-memory-budget"
   [ "$(git -C "$w/sm" rev-parse HEAD)" = "$head" ] \
     || fail "default-only sweep did not still fast-forward the tracked files"
@@ -2526,7 +2526,7 @@ cat > "$w/main/bin/fm-spawn.sh" <<SH
 . '$w/main/bin/fm-config-inherit-lib.sh'
 printf '%s' spawn >> '$log'
 printf '%s' codex > '$w/sm/config/crew-harness'
-printf '%s\n' 7500 > '$w/sm/config/startup-memory-budget'
+printf '%s\n' 5000 > '$w/sm/config/startup-memory-budget'
 SH
   chmod +x "$w/main/bin/fm-spawn.sh"
   fakebin=$(make_fake_toolchain "$w")

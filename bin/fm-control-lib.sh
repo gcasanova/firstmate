@@ -59,18 +59,18 @@ fm_control_verb_allowed() {  # <verb>
 }
 
 # The harnesses whose control mechanics are verified. Mirrors AGENTS.md
-# section 4's verified-adapter list; an unverified adapter is refused rather
+# harness-adapters' verified-adapter contract; an unverified adapter is refused rather
 # than guessed at, exactly as a spawn on it would be.
 fm_control_harnesses() {
   printf '%s\n' claude codex opencode pi pi-signed grok kimi cursor gemini muse rovo omp agy
 }
 
 fm_control_harness_supported() {  # <harness>
-  local harness
+  local harness found=1
   while read -r harness; do
-    [ "$harness" = "${1-}" ] && return 0
+    [ "$harness" = "${1-}" ] && found=0
   done < <(fm_control_harnesses)
-  return 1
+  return "$found"
 }
 
 # The verified adapter a RECORDED harness value belongs to. Every table below

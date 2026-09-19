@@ -6,7 +6,7 @@
 #        fm-spawn.sh <task-id> [<firstmate-home>] [--harness <name>|harness|launch-command] [--model <name>] [--effort <level>] [--backend <name>] --secondmate
 #   --mode and --yolo are this task's delivery contract, REQUIRED for every ship
 #   spawn and refused on --scout and --secondmate spawns. Firstmate resolves both
-#   per task at intake (AGENTS.md section 7); data/projects.md holds the captain's
+#   per task at intake through task-lifecycle; data/projects.md holds the captain's
 #   standing posture as context, not as this task's answer, so a spawn never looks
 #   the mode up. A ship spawn additionally reads the brief's recorded
 #   "Delivery contract: mode=<mode>" line and REFUSES a mismatch, so the worker's
@@ -512,6 +512,8 @@ fm_backlog_directory_present "$STATE" "state directory" || {
 . "$SCRIPT_DIR/fm-remote-readiness-lib.sh"
 # shellcheck source=bin/fm-timeout-lib.sh
 . "$SCRIPT_DIR/fm-timeout-lib.sh"
+# shellcheck source=bin/fm-dispatch-authority-lib.sh
+. "$SCRIPT_DIR/fm-dispatch-authority-lib.sh"
 # Fail closed before any fleet mutation: a no-mistakes gate agent must never spawn
 # a direct report (see bin/fm-gate-refuse-lib.sh).
 fm_refuse_if_gate_agent
@@ -520,6 +522,11 @@ fm_refuse_if_gate_agent
 [ -n "${FM_SPAWN_NO_GUARD:-}" ] || "$FM_ROOT/bin/fm-guard.sh" || true
 KIND=ship
 KIND_SET=0
+# Asserts that the captain gave concrete, in-the-moment approval for THIS spawn's
+# elevated resource use (past the concurrency cap, or on an Opus model). It is
+# never inferred from a dispatch profile, a matched rule, or a previous
+# approval; firstmate passes it only after the captain actually said yes.
+CAPTAIN_AUTHORIZED=0
 HARNESS_ARG=
 MODEL=
 EFFORT=
@@ -592,6 +599,7 @@ for a in "$@"; do
     KIND_SET=1
     ;;
   --relaunch) RELAUNCH=1 ;;
+  --captain-authorized) CAPTAIN_AUTHORIZED=1 ;;
   --harness) want_value=harness ;;
   --harness=*)
     HARNESS_ARG=${a#--harness=}
@@ -683,6 +691,49 @@ case "$EFFORT" in
   ;;
 esac
 
+# --- captain dispatch-authority gates -------------------------------------
+# Two standing captain restrictions that used to live only in data/captain.md
+# and therefore only in the agent's memory. Enforced here, in the authoritative
+# spawn path, so the default outcome is refusal rather than a forgotten rule.
+# Both are deliberately skipped for --relaunch (it reuses an already-authorized
+# task's endpoint and adds no new concurrent worker) and for --secondmate
+# (persistent homes are not ordinary crewmates and are registered, not queued).
+#
+# The Opus gate: a dispatch profile or matched routing rule selecting Opus is
+# NOT captain authorization. Only --captain-authorized is.
+if [ "$RELAUNCH" -eq 0 ] && [ "$KIND" != secondmate ]; then
+  if fm_dispatch_model_is_opus "$MODEL" && [ "$CAPTAIN_AUTHORIZED" -eq 0 ]; then
+    {
+      echo "error: dispatching a crewmate on an Opus model ('$MODEL') requires explicit captain authorization."
+      echo "A crew-dispatch profile or matched routing rule selecting Opus is NOT authorization:"
+      echo "it identifies the candidate tier, it does not substitute for the captain's go-ahead."
+      echo "Ask the captain about this specific task, then re-run with --captain-authorized."
+    } >&2
+    exit 1
+  fi
+
+  # The concurrency cap counts Claude-backed ordinary crewmates whose endpoint
+  # is still alive, so a finished-but-not-torn-down task never consumes a slot.
+  if ! DISPATCH_CAP=$(fm_dispatch_concurrency_cap_read "$CONFIG"); then
+    echo "error: $(fm_dispatch_authority_error)" >&2
+    exit 1
+  fi
+  if [ "$DISPATCH_CAP" -gt 0 ] \
+    && fm_dispatch_harness_is_claude "${HARNESS_ARG:-$("$SCRIPT_DIR/fm-harness.sh" crew 2>/dev/null || printf unknown)}"; then
+    DISPATCH_ACTIVE=$(fm_dispatch_active_claude_count "$STATE")
+    if [ "$DISPATCH_ACTIVE" -ge "$DISPATCH_CAP" ] && [ "$CAPTAIN_AUTHORIZED" -eq 0 ]; then
+      {
+        echo "error: $DISPATCH_ACTIVE Claude-backed crewmate(s) are already working, at the captain's cap of $DISPATCH_CAP."
+        echo "Live now: $(fm_dispatch_active_claude_crew "$STATE" | tr '\n' ' ')"
+        echo "Queue this work (tasks-axi hold <id> --kind load) and dispatch it when a slot frees,"
+        echo "or re-run with --captain-authorized once the captain has approved exceeding the cap."
+      } >&2
+      exit 1
+    fi
+  fi
+fi
+
+
 # --relaunch reuses an existing task's endpoint, worktree, project, and kind,
 # so every axis this block resolves for a fresh spawn instead comes from that
 # task's own durable record below. Contradicting it on the command line is a
@@ -705,7 +756,7 @@ if [ "$RELAUNCH" -eq 1 ]; then
     exit 1
   }
 else
-  # Delivery contract (AGENTS.md section 7). A ship task's mode and yolo are
+  # Delivery contract (task-lifecycle). A ship task's mode and yolo are
   # firstmate's per-task decision, so they are required and closed-set validated
   # here rather than resolved from the project registry. Scouts deliver a report
   # and record no delivery posture; secondmate spawns hardcode theirs.
@@ -2292,7 +2343,7 @@ effort_flag_for_harness() {
     # high|xhigh|ultra and defaults to high, so low..xhigh map straight across.
     # ultra is muse's max-CLASS level, so firstmate's max maps onto it - but
     # only ever as an EXPLICIT captain choice, never as a fallback, because
-    # AGENTS.md section 4 forbids selecting max without captain preference and
+    # harness-adapters forbids selecting max without captain preference and
     # the omitted effort here leaves muse on its own high default. muse's extra
     # none/minimal levels sit below firstmate's shared vocabulary and are
     # deliberately unreachable rather than remapped onto low.

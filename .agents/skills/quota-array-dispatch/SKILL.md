@@ -13,8 +13,8 @@ metadata:
 # quota-array-dispatch
 
 This skill is the single owner of the completion-aware profile-array selection procedure.
-`AGENTS.md` section 4 owns the always-loaded intake boundary, load trigger, malformed-config refusal, every-candidate accounting, and strongest-reasoning/tie safety rules.
-`harness-adapters` owns harness verification, model/provider discovery, and effort fallback.
+The `AGENTS.md` skill map owns this skill's trigger, and section 4 retains only the no-silent-substitution and task-scoped-override invariants.
+`harness-adapters` owns profile precedence, malformed-config refusal, harness verification, model/provider discovery, backend refusal, and effort fallback.
 `quota-axi` remains data-only: it publishes `spendPriority` as a comparable scalar and never recommends, selects, ranks, or infers a route.
 Do not add a daemon, opaque composite score, routing wrapper, hard-coded model-specific policy, or producer-side route recommendation.
 Deterministic shell owns only schema, configuration, and version validation plus concrete spawn safeguards; every model-to-provider, provider-to-credential, and quota-applicability relation is yours to establish transparently and to show your evidence for.
@@ -107,6 +107,12 @@ Read `runway` from the `quota[]` row: `through_reset` passes this generic feasib
 A high `spendPriority` on a nearly empty window that will exhaust soon must not route into a mid-task stall.
 Unknown or unmeasurable runway stays eligible with disclosed uncertainty and is never assumed to pass.
 Do not invent a generic percentage floor, and honor an explicit captain floor for a candidate when one exists.
+
+## Weight raw headroom over a pace projection
+
+A standing captain correction: do not let a pace-based "projected exhaustion" warning alone push work off Claude while raw headroom is still comfortable.
+The runway projection assumes continued heavy burn and overstates scarcity for anything but sustained dispatch.
+Weight raw `percentRemaining` over the projection: keep the task on Claude when raw is still comfortably high (roughly 30%+ on the limiting window), and reserve overflow for genuinely low raw headroom or a task that could plausibly run long enough to hit the projection.
 
 ## Rank by spendPriority
 
