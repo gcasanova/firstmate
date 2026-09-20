@@ -61,7 +61,8 @@ The digest itself makes no external-network call and never waits for one.
 Every network check a session start owes - GitHub auth, dead-secondmate relaunch, secondmate convergence, pending handoff delivery, and project clone refresh - plus the locked inactive-outcome scan runs off the digest's blocking path in a bounded worker owned by `bin/fm-startup-network.sh`.
 Network results are reported in the digest's `NETWORK CHECKS` section, while inactive findings use the ordinary durable wake queue.
 When that section reports checks still in progress it names exactly what is unconfirmed.
-Treat none of those as passed until `bin/fm-startup-network.sh report` returns the finished result; a failed or otherwise actionable result also arrives as a `check: startup-network` wake.
+`IN PROGRESS` is a normal pending state, not a bootstrap diagnostic; do not load `bootstrap-diagnostics` or poll solely for it.
+Treat none of those as passed until the deferred stage publishes its finished result; a failed or otherwise actionable result also arrives as a `check: startup-network` wake.
 
 ## Open decisions, unread status, and record divergence
 

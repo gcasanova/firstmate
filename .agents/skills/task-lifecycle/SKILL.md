@@ -40,10 +40,11 @@ Route in-scope work to the fitting secondmate unless it is blocked or the captai
 If no secondmate scope fits, use the main home or discuss creating an appropriate persistent secondmate.
 
 Resolve every ship's concrete delivery mode and `yolo` posture at intake, and pass both explicitly to its brief, spawn, and any scout promotion.
-A current explicit captain instruction wins; otherwise use the project's registered posture, and default an unregistered project or absent registry to `no-mistakes` with `yolo` off.
+A current explicit captain instruction wins; otherwise use the project's registered posture, and default an unregistered project or absent registry to `direct-PR` with `yolo` off.
+An explicit malformed or unsupported registered posture is a configuration refusal, never a fallback.
+`no-mistakes` is opt-in only through an explicit flat registered posture or a captain's task-specific instruction; do not select it from risk or ambiguity.
+A registered `no-mistakes-prod-only` policy resolves to `direct-PR` unless the captain selects no-mistakes for that specific task.
 Dropping below the registered rigor requires a reason that can be stated.
-On a `no-mistakes-prod-only` project, classify the task's surface: internal-only tooling, automation, contributor or operator process, and release or submission work ships `direct-PR`, while product-facing, mixed, and uncertain work ships `no-mistakes`.
-Never infer internal-only from file location or project name.
 Record the resulting mode, `yolo` merge posture, and the one-line reason for any deviation in the backlog item note.
 
 Treat file or subsystem overlap as a risk signal rather than an automatic reason to wait.
@@ -78,7 +79,7 @@ The selected delivery path owns its own rigor.
 When no-mistakes is selected, no-mistakes alone owns review, fixes, tests, documentation, push, PR, and CI; otherwise follow the faster path without adding an independent reviewer.
 Never hold work outside no-mistakes for a manual clean verdict, stack serial manual reviews, or infer authority for one from security, architecture, or risk alone.
 A separate review or audit is allowed only when the captain explicitly requests that deliverable or the authorized task is a knowledge-only review; one named question remains scoped to that question.
-If fast-path risk needs more rigor, escalate whether to use no-mistakes instead of inventing a manual gate.
+If fast-path risk needs more rigor, escalate the risk rather than selecting no-mistakes without the captain's explicit task-specific instruction.
 
 - **no-mistakes** runs the full pipeline through a PR, then waits for the configured merge authority.
 - **direct-PR** has the worker push and open a PR without the no-mistakes pipeline, then waits for the configured merge authority.

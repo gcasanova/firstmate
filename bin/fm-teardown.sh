@@ -1009,7 +1009,6 @@ elif [ "$TREEHOUSE_SLOT_LOCK_REQUIRED" = 1 ]; then
   exit 1
 fi
 MODE=$(grep '^mode=' "$META" | cut -d= -f2- || true)
-[ -n "$MODE" ] || MODE=no-mistakes
 
 # A record accepted as a legacy incarnation (no spawn_gen, --legacy-record
 # given) may be torn down only when its recorded endpoint is confidently gone
@@ -1874,6 +1873,10 @@ task_status_is_run_not_found() {  # <status-error> <run-id>
 conclude_task_no_mistakes_run() {  # <worktree>
   local wt=$1 out run_id
   [ "$KIND" = ship ] || return 0
+  # Mode-less records predate explicit delivery modes. Preserve their bounded
+  # attribution check so a real parked no-mistakes run is never orphaned; new
+  # direct-PR and local-only records always carry a non-no-mistakes mode.
+  { [ "$MODE" = no-mistakes ] || [ -z "$MODE" ]; } || return 0
   [ -d "$wt" ] || return 0
   command -v no-mistakes >/dev/null 2>&1 || return 0
   task_run_is_own_parked_run "$wt" || return 0
