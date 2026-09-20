@@ -2324,6 +2324,29 @@ SH
   pass "no timeout command uses perl bound"
 }
 
+test_direct_pr_ship_skips_no_mistakes_lookup() {
+  reset_fakes
+  local d calls_file out
+  d=$(new_case direct-pr-no-nm)
+  make_repo_on_branch "$d/wt" fm/direct-pr
+  make_fakebin "$d" >/dev/null
+  calls_file="$d/no-mistakes.calls"
+  : > "$calls_file"
+  cat > "$d/fakebin/no-mistakes" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${FM_FAKE_NM_CALLS:?}"
+exit 99
+SH
+  chmod +x "$d/fakebin/no-mistakes"
+  fm_write_meta "$d/state/direct-pr.meta" "window=fm:fm-direct-pr" "worktree=$d/wt" "kind=ship" \
+    "mode=direct-PR" "harness=claude"
+  FM_FAKE_BUSY=1
+  out=$(FM_FAKE_NM_CALLS="$calls_file" PATH="$d/fakebin:$PATH" FM_STATE_OVERRIDE="$d/state" "$CREW_STATE" direct-pr)
+  assert_contains "$out" "source: pane" "direct-PR should use its pane state"
+  [ ! -s "$calls_file" ] || fail "direct-PR ship queried no-mistakes: $(cat "$calls_file")"
+  pass "direct-PR ships skip no-mistakes state lookup"
+}
+
 # (i) kind=scout skips the run lookup entirely (its deliverable is a report).
 test_scout_skips_run_lookup() {
   reset_fakes
@@ -3605,6 +3628,7 @@ test_no_run_tmux_unreadable_reads_unreachable_not_gone
 test_dead_window_still_reports_terminal_run_step
 test_dead_window_still_reports_active_run_step
 test_no_timeout_uses_perl_bound
+test_direct_pr_ship_skips_no_mistakes_lookup
 test_scout_skips_run_lookup
 test_torn_down_worktree
 test_remote_alive_with_log_uses_status_log

@@ -33,7 +33,9 @@
 #      to the routed status log; dead/missing report the remote verdict; an
 #      unreachable or unreadable remote reports unknown-remote, never a false
 #      gone/dead.
-#   2. Matching no-mistakes run for this crew's branch AND current code identity,
+#   2. For a ship recorded with mode=no-mistakes, or a legacy mode-less ship
+#      preserved for already-in-flight attribution, matching no-mistakes run for
+#      this crew's branch AND current code identity,
 #      active or terminal (from `axi status`, or the coarse `no-mistakes runs`
 #      fallback)? Branch name alone is not enough: a historical run on a reused
 #      branch whose head was rewritten or diverged must not be attributed.
@@ -164,6 +166,7 @@ WT=$(meta_value worktree)
 KIND=$(meta_value kind)
 HARNESS=$(meta_value harness)
 REMOTE_HOST=$(meta_value remote_host)
+MODE=$(meta_value mode)
 [ -n "$KIND" ] || KIND=ship
 
 # A torn-down (or never-created) worktree has no current state to read. A
@@ -689,9 +692,13 @@ HAVE_RUN=0
 RUN_SOURCE=full
 COARSE_STATUS=""
 SELECTED_RUN_ID=""
-# Scouts and secondmates never drive a no-mistakes validation of their own
-# worktree, so skip the lookup for them and read state from pane/log directly.
-if [ "$KIND" = ship ] && [ -n "$CREW_BRANCH" ] && command -v no-mistakes >/dev/null 2>&1; then
+# Only no-mistakes ships drive a validation of their own worktree. Direct-PR,
+# local-only, and scouts skip the lookup and read state from pane/log directly.
+# A mode-less record predates explicit task modes, so it retains the legacy
+# no-mistakes read only to preserve attribution and teardown safety for work
+# already in flight; newly spawned ordinary work always records its mode.
+if [ "$KIND" = ship ] && { [ "$MODE" = no-mistakes ] || [ -z "$MODE" ]; } \
+  && [ -n "$CREW_BRANCH" ] && command -v no-mistakes >/dev/null 2>&1; then
   RUN_OUT=$(nm_run axi status)
   if [ "$(strip_quotes "$(printf '%s\n' "$RUN_OUT" | sed -n 's/^error: //p')")" = "repo not initialized (run 'no-mistakes init' first)" ]; then
     RUN_OUT=""
