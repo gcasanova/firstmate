@@ -2,8 +2,8 @@
 name: bootstrap-diagnostics
 description: >-
   Agent-only handling playbook for session-start bootstrap diagnostics.
-  Use whenever the session-start digest's bootstrap or network-checks section prints an actionable diagnostic line - MISSING, MISSING_MANUAL, PRESENTATION_UNAVAILABLE, BACKEND_INVALID, NEEDS_GH_AUTH, TANGLE, STARTUP_MEMORY_BUDGET, CREW_DISPATCH invalid, FLEET_SYNC, NETWORK_CHECKS, HOME_SUMMARY, BACKLOG_RECONCILE, SECONDMATE_SYNC, SECONDMATE_LIVENESS, SECONDMATE_HANDOFF, NUDGE_SECONDMATES, or FMX - or reports that an interrupted backlog cleanup may have left an endpoint or local copy, or when a standalone bin/fm-bootstrap.sh or bin/fm-startup-network.sh run prints one of those lines.
-  A silent bootstrap section, or any other BOOTSTRAP_INFO fact, means no skill load.
+  Use only when the session-start digest's bootstrap or network-checks section prints a terminal actionable diagnostic line - MISSING, MISSING_MANUAL, PRESENTATION_UNAVAILABLE, BACKEND_INVALID, NEEDS_GH_AUTH, TANGLE, STARTUP_MEMORY_BUDGET, CREW_DISPATCH invalid, FLEET_SYNC, NETWORK_CHECKS, HOME_SUMMARY, BACKLOG_RECONCILE, SECONDMATE_SYNC, SECONDMATE_LIVENESS, SECONDMATE_HANDOFF, NUDGE_SECONDMATES, or FMX - or reports that an interrupted backlog cleanup may have left an endpoint or local copy, or when a standalone bin/fm-bootstrap.sh or bin/fm-startup-network.sh run prints one of those lines.
+  `IN PROGRESS` is a normal pending state, and a clean completion, a silent bootstrap section, or any other BOOTSTRAP_INFO or NOTICE fact means no skill load.
 user-invocable: false
 metadata:
   internal: true
@@ -11,7 +11,8 @@ metadata:
 
 # bootstrap-diagnostics
 
-Handle each printed line as below, before dispatching work that depends on it.
+Handle each printed terminal diagnostic line as below, before dispatching work that depends on it.
+`IN PROGRESS` requires neither this skill nor a synchronous wait or poll; let the deferred stage publish its terminal result.
 The line formats themselves are owned by `bin/fm-bootstrap.sh`'s header; this playbook owns the response to actionable lines.
 Bootstrap detects first, asks for consent, and installs only after the captain approves in the current session.
 Never install anything on inferred or prior-session consent, and do not dispatch work until its required tools are present and GitHub authentication is good.

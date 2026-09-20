@@ -317,15 +317,15 @@ lock_unchanged() {  # <expected-pid>
 }
 
 # Bootstrap owns the meaning of its output protocol: silence is success,
-# BOOTSTRAP_INFO is an explicit completed no-action fact, and every other line
-# is a diagnostic. This delivery layer does not maintain a second semantic
-# prefix list or decide what a diagnostic means; it only applies that producer-
-# supplied transport type. Unknown non-empty output fails safe by waking.
+# BOOTSTRAP_INFO and NOTICE are explicit completed no-action facts, and every
+# other line is a diagnostic. This delivery layer does not maintain a second
+# semantic prefix list or decide what a diagnostic means; it only applies that
+# producer-supplied transport type. Unknown non-empty output fails safe by waking.
 report_requires_wake() {  # <state>
   local state=$1
   [ "$state" = "done" ] || return 0
   [ -s "$REPORT_FILE" ] || return 1
-  awk 'NF && $0 !~ /^BOOTSTRAP_INFO:/ { found=1; exit } END { exit !found }' \
+  awk 'NF && $0 !~ /^(BOOTSTRAP_INFO|NOTICE):/ { found=1; exit } END { exit !found }' \
     "$REPORT_FILE" 2>/dev/null
 }
 
@@ -542,7 +542,15 @@ print_finished() {  # <state>
     *) took=$((finished - started)) ;;
   esac
   printf 'completed off the startup path in %ss: %s.\n' "$took" "$(phase_label "$phases")"
-  [ "$state" = 'done' ] || printf 'The stage itself did not finish cleanly (%s) - the NETWORK_CHECKS line below names what to rerun.\n' "$state"
+  if [ "$state" = 'done' ]; then
+    if report_requires_wake "$state"; then
+      printf 'The terminal result below is actionable; load bootstrap-diagnostics.\n'
+    else
+      printf 'The terminal result is clean; bootstrap-diagnostics is not required.\n'
+    fi
+  else
+    printf 'The stage itself did not finish cleanly (%s) - the NETWORK_CHECKS line below names what to rerun; load bootstrap-diagnostics.\n' "$state"
+  fi
   if [ "$report_published" = 0 ]; then
     printf 'NETWORK_CHECKS: could not publish the deferred check report, so %s results are unavailable; rerun %s/bin/fm-startup-network.sh run --locked %s\n' \
       "$(phase_label "$phases")" "$FM_ROOT" "$(status_get locked)"
@@ -572,6 +580,7 @@ print_pending() {
   printf 'NOT yet confirmed: %s.\n' "$(phase_label "$phases")"
   [ -z "$age" ] || printf 'Started %ss ago, bounded at %ss.\n' "$age" "$(stage_budget)"
   # shellcheck disable=SC2016  # The backticked wake name is literal digest text.
+  printf 'This is a normal pending state; do not load bootstrap-diagnostics or poll solely because the checks are pending.\n'
   printf 'Only a FAILED or otherwise actionable result arrives as a `check: startup-network` wake; a clean success stays silent.\n'
   printf 'The durable result is readable on demand with %s/bin/fm-startup-network.sh report; until it finishes, treat none of it as confirmed.\n' "$FM_ROOT"
 }
