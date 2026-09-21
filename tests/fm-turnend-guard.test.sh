@@ -880,17 +880,20 @@ test_grok_adapter_missing_jq_and_no_supervision_allow() {
 # Claude-only Stop auto-arm ran synchronously under Grok, foregrounded the
 # watcher, and wedged the Grok turn for its declared 28800-second timeout.
 #
-# bin/fm-subagent-pretool-check.sh is the deliberate exception: Grok has no
-# counterpart registration, so guarding it would REMOVE the guard from Grok
-# rather than deduplicate it (docs/subagent-guard.md "Known residual gap").
-# It is asserted to stay unguarded so the exception cannot be closed silently.
+# bin/fm-subagent-pretool-check.sh and
+# bin/fm-tool-result-bound-hook.mjs are deliberate exceptions: Grok has no
+# counterpart registration for either, so guarding them would REMOVE their
+# Claude behavior from Grok rather than deduplicate it (docs/subagent-guard.md
+# "Known residual gap"). They are asserted to stay unguarded so the exceptions
+# cannot be closed silently.
 test_tracked_claude_entries_inert_under_grok() {
   local dir cmd script target guarded=0 unguarded=0
   command -v jq >/dev/null 2>&1 || fail "test host must provide jq"
   dir="$TMP_ROOT/claude-entries-grok-inert"
   mkdir -p "$dir/bin"
   for script in fm-turnend-guard.sh fm-claude-stop-autoarm.sh fm-sessionstart-run.sh \
-    fm-arm-pretool-check.sh fm-cd-pretool-check.sh fm-subagent-pretool-check.sh; do
+    fm-arm-pretool-check.sh fm-cd-pretool-check.sh fm-subagent-pretool-check.sh \
+    fm-tool-result-bound-hook.mjs; do
     printf '#!/usr/bin/env bash\nprintf ran >> %q\n' "$dir/invoked" > "$dir/bin/$script"
     chmod +x "$dir/bin/$script"
   done
@@ -902,9 +905,24 @@ test_tracked_claude_entries_inert_under_grok() {
     [ -e "$dir/invoked" ]
   }
 
+  tracked_target() {
+    local target
+    target=$(printf '%s\n' "$1" | sed -n 's|.*/bin/\([a-z0-9-]*\.sh\).*|\1|p')
+    [ -n "$target" ] || target=$(printf '%s\n' "$1" | sed -n 's|.*/bin/\([a-z0-9-]*\.mjs\).*|\1|p')
+    printf '%s\n' "$target"
+  }
+
+  # shellcheck disable=SC2016 # The test must preserve Claude's deferred variable expansion.
+  target=$(tracked_target '"$CLAUDE_PROJECT_DIR"/bin/fm-tool-result-bound-hook.mjs')
+  [ "$target" = fm-tool-result-bound-hook.mjs ] \
+    || fail "did not recognize the tracked .mjs hook target"
+  # shellcheck disable=SC2016 # The test must preserve Claude's deferred variable expansion.
+  target=$(tracked_target '"$CLAUDE_PROJECT_DIR"/bin/fm-tool-result-bound-hook.py')
+  [ -z "$target" ] || fail "recognized unsupported tracked hook target: $target"
+
   while IFS= read -r cmd; do
     [ -n "$cmd" ] || continue
-    target=$(printf '%s\n' "$cmd" | sed -n 's|.*/bin/\([a-z0-9-]*\.sh\).*|\1|p')
+    target=$(tracked_target "$cmd")
     [ -n "$target" ] || fail "could not identify the target script of tracked entry: $cmd"
 
     # Native Claude: EVERY tracked entry must still reach its script, or a guard
@@ -913,7 +931,8 @@ test_tracked_claude_entries_inert_under_grok() {
       -u GROK_WORKSPACE_ROOT \
       || fail "tracked entry for $target did not run under a native Claude environment"
 
-    if [ "$target" = fm-subagent-pretool-check.sh ]; then
+    if [ "$target" = fm-subagent-pretool-check.sh ] \
+      || [ "$target" = fm-tool-result-bound-hook.mjs ]; then
       unguarded=$((unguarded + 1))
       ran_under -u GROK_AGENT GROK_HOOK_EVENT=pre_tool_use GROK_SESSION_ID=grok-test-session \
         || fail "the documented $target exception must stay unguarded; Grok has no counterpart to fall back to"
@@ -932,8 +951,8 @@ test_tracked_claude_entries_inert_under_grok() {
   done < <(jq -r '.hooks[][].hooks[].command' "$ROOT/.claude/settings.json")
 
   [ "$guarded" -eq 5 ] || fail "expected 5 grok-guarded tracked entries, saw $guarded"
-  [ "$unguarded" -eq 1 ] || fail "expected 1 documented unguarded tracked entry, saw $unguarded"
-  pass "tracked .claude/settings.json entries: $guarded inert under grok, the documented subagent exception still armed, all live under Claude"
+  [ "$unguarded" -eq 2 ] || fail "expected 2 documented unguarded tracked entries, saw $unguarded"
+  pass "tracked .claude/settings.json entries: $guarded inert under grok, documented exceptions still armed, all live under Claude"
 }
 
 test_codex_hook_uses_process_pwd_when_payload_cwd_is_outside_root() {
