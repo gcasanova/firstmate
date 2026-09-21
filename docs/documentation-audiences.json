@@ -325,6 +325,10 @@
       "audience": "maintainer-architecture"
     },
     {
+      "path": "docs/claude-context-meter.md",
+      "audience": "maintainer-architecture"
+    },
+    {
       "path": "docs/cmux-backend.md",
       "audience": "operator-current"
     },
