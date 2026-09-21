@@ -3221,6 +3221,14 @@ if [ "$KIND" = scout ] && [ "$FORCE" != "--force" ]; then
     echo "The report is the work product. Have the crewmate write it, or use --force after explicit discard approval." >&2
     exit 1
   fi
+  BRIEF="$DATA/$ID/brief.md"
+  if [ -f "$BRIEF" ] && grep -Fqx 'Scout handoff: compact-research' "$BRIEF"; then
+    if ! "$SCRIPT_DIR/fm-scout-report-check.sh" --text "$REPORT"; then
+      echo "REFUSED: research scout task $ID has no compact report handoff." >&2
+      echo "Distill the findings to the report budget and retain detailed evidence under its artifacts path." >&2
+      exit 1
+    fi
+  fi
   if ! FM_HOME="$FM_HOME" FM_STATE_OVERRIDE="$STATE" FM_DATA_OVERRIDE="$DATA" \
       FM_CONFIG_OVERRIDE="$CONFIG" "$SCRIPT_DIR/fm-captain-hold.sh" verify "$ID" >/dev/null; then
     echo "REFUSED: scout task $ID has not passed the captain-call completion gate." >&2

@@ -16,9 +16,12 @@
 # PR instead of shipping a new one).
 # Usage: fm-brief.sh <task-id> <repo-name> --mode <no-mistakes|direct-PR|local-only> [--herdr-lab]
 #        fm-brief.sh <task-id> <repo-name> --scout [--herdr-lab]
+#        fm-brief.sh <task-id> <repo-name> --research-scout [--herdr-lab]
 #        fm-brief.sh <task-id> --secondmate {<project>...|--no-projects}
 #   --scout writes the scout contract instead: the deliverable is a report at
 #   data/<task-id>/report.md (no branch, no push, no PR) and the worktree is scratch.
+#   --research-scout selects the compact research handoff: a 6 KiB distilled
+#   report checked at teardown. Without it, a scout keeps the general report contract.
 #   It offers the Lavish review loop only when `fm-bootstrap.sh lavish-compatible`
 #   confirms the supported lavish-axi floor; otherwise it asks for a text report.
 #   --secondmate writes a persistent secondmate charter. The project list
@@ -122,6 +125,7 @@ else
   STATE="$FM_HOME/state"
 fi
 KIND=ship
+RESEARCH_SCOUT=0
 HERDR_LAB=0
 NO_PROJECTS=0
 MODE=
@@ -142,6 +146,7 @@ for a in "$@"; do
   fi
   case "$a" in
     --scout) KIND=scout ;;
+    --research-scout) KIND=scout; RESEARCH_SCOUT=1 ;;
     --secondmate) KIND=secondmate ;;
     --herdr-lab) HERDR_LAB=1 ;;
     --no-projects) NO_PROJECTS=1 ;;
@@ -364,6 +369,17 @@ if "$SCRIPT_DIR/fm-bootstrap.sh" lavish-compatible >/dev/null 2>&1; then
 else
   LAVISH_LINE='Lavish is unavailable (lavish-axi is missing or below its supported version floor), so deliver your findings as a text report without Lavish, even for a visual deliverable.'
 fi
+if [ "$RESEARCH_SCOUT" -eq 1 ]; then
+  IFS= read -r -d '' SCOUT_REPORT_CONTRACT <<EOF || true
+Scout handoff: compact-research
+This is a research-scout handoff, not a transcript: keep it at or below 6 KiB and include only these sections: \`Conclusion/findings\`, \`Strongest supporting evidence\`, \`Relevant paths/symbols/commands\`, \`Risks/uncertainties\`, and \`Recommended next action\`.
+Do not include raw CI logs, source files, broad search dumps, large diffs, chronological command transcripts, or every command you ran.
+Run \`$FM_ROOT/bin/fm-scout-report-check.sh --text $DATA/$ID/report.md\` before reporting done; it rejects an oversized report so raw research is never forwarded as the scout completion handoff.
+EOF
+  SCOUT_REPORT_CONTRACT=${SCOUT_REPORT_CONTRACT%$'\n'}
+else
+  SCOUT_REPORT_CONTRACT='The report must stand alone: what you did, what you found, the evidence (commands run, output, file:line references), and what you recommend.'
+fi
 cat > "$BRIEF" <<EOF
 You are a crewmate: an autonomous worker agent managed by firstmate. Work on your own; do not wait for a human.
 
@@ -379,7 +395,7 @@ The report is the only thing that survives, so anything worth keeping must be in
 
 # Rules
 1. Never push to any remote and never open a PR.
-2. Stay inside this worktree; the only files you may write outside it are the report and the status file below.
+2. Stay inside this worktree; the only files you may write outside it are the report, its \`artifacts/\` directory, and the status file below.
 3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.
 4. Report status by appending one line:
    \`echo "{state}: {one short line}" >> $STATUS_FILE\`
@@ -418,7 +434,8 @@ $INBOX_SECTION
 
 # Definition of done
 Write your findings to \`$DATA/$ID/report.md\`.
-The report must stand alone: what you did, what you found, the evidence (commands run, output, file:line references), and what you recommend.
+$SCOUT_REPORT_CONTRACT
+Put detailed evidence in \`$DATA/$ID/artifacts/\` when needed, and link only the relevant artifact path and references from the report.
 $LAVISH_LINE
 Before reporting done, read and follow \`$FM_ROOT/.agents/skills/captain-hold-lifecycle/SKILL.md\` and pass its shared completion gate for the report and any visual review.
 When the report is complete, append \`done: {one-line conclusion}\` to the status file and stop.

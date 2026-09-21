@@ -933,6 +933,24 @@ test_scout_and_secondmate_scaffold() {
   pass "fm-brief: scout and secondmate code paths still scaffold well-formed briefs"
 }
 
+test_scout_research_handoff_contract() {
+  local home brief
+  home="$TMP_ROOT/scout-research-handoff"
+  FM_HOME="$home" "$ROOT/bin/fm-brief.sh" research-handoff alpha --research-scout >/dev/null 2>&1 \
+    || fail "research scout scaffold failed"
+  brief="$home/data/research-handoff/brief.md"
+  assert_grep 'at or below 6 KiB' "$brief" "research scout brief lost the compact report budget"
+  assert_grep 'Conclusion/findings' "$brief" "research scout brief lost the distilled findings contract"
+  assert_grep 'Do not include raw CI logs' "$brief" "research scout brief must reject raw research dumps"
+  assert_grep 'fm-scout-report-check.sh --text' "$brief" "research scout brief must name the mechanical report boundary"
+  FM_HOME="$home" "$ROOT/bin/fm-brief.sh" general-scout alpha --scout >/dev/null 2>&1 \
+    || fail "general scout scaffold failed"
+  brief="$home/data/general-scout/brief.md"
+  assert_no_grep 'Scout handoff: compact-research' "$brief" "general scout must retain its non-research report contract"
+  assert_no_grep 'at or below 6 KiB' "$brief" "general scout must not receive the research report budget"
+  pass "fm-brief.sh: research scouts receive the compact handoff contract"
+}
+
 test_worker_role_scope() {
   local kind home brief
   home="$TMP_ROOT/worker-role"
@@ -980,4 +998,5 @@ test_pause_verb_override_renders_all_brief_scaffolds
 test_ship_and_scout_teach_validation_round_pause
 test_scout_and_secondmate_load_decision_hold_policy
 test_scout_and_secondmate_scaffold
+test_scout_research_handoff_contract
 test_scout_lavish_line_follows_presentation_floor
