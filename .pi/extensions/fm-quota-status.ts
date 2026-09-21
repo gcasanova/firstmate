@@ -101,7 +101,8 @@ export default function (pi: ExtensionAPI) {
     try {
       do {
         refreshRequested = false;
-        const ctx = latestContext;
+        const ctx: ExtensionContext | undefined = latestContext;
+        if (!ctx) return;
         const providerName = quotaProviderFor(ctx);
         if (!providerName) {
           ctx.ui.setStatus(STATUS_KEY, undefined);
@@ -146,7 +147,7 @@ export default function (pi: ExtensionAPI) {
     void refresh();
   };
 
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", (_event, ctx: ExtensionContext) => {
     if (ctx.mode !== "tui") return;
     active = true;
     requestRefresh(ctx);
@@ -155,12 +156,12 @@ export default function (pi: ExtensionAPI) {
     }, DEFAULT_REFRESH_MS);
   });
 
-  pi.on("model_select", (_event, ctx) => {
+  pi.on("model_select", (_event, ctx: ExtensionContext) => {
     if (!active || ctx.mode !== "tui") return;
     requestRefresh(ctx);
   });
 
-  pi.on("session_shutdown", (_event, ctx) => {
+  pi.on("session_shutdown", (_event, ctx: ExtensionContext) => {
     active = false;
     refreshRequested = false;
     latestContext = undefined;

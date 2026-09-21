@@ -16,6 +16,13 @@ SPAWN="$ROOT/bin/fm-spawn.sh"
 TMP_ROOT=$(fm_test_tmproot fm-spawn-batch)
 export FM_BACKEND=tmux
 
+# An isolated, EMPTY config dir. Clearing FM_CONFIG_OVERRIDE to "" resolves to
+# the operator's real config/, so a local crew-dispatch.json made these tests
+# fail on a real home while passing in CI, where config/ is gitignored and
+# absent. The behavior under test is argument routing, not local configuration.
+ISOLATED_CONFIG="$TMP_ROOT/config"
+mkdir -p "$ISOLATED_CONFIG"
+
 # Clear ambient firstmate overrides so the behavior test owns its environment.
 run_spawn() {
   FM_ROOT_OVERRIDE='' \
@@ -23,12 +30,12 @@ run_spawn() {
     FM_STATE_OVERRIDE='' \
     FM_DATA_OVERRIDE='' \
     FM_PROJECTS_OVERRIDE='' \
-    FM_CONFIG_OVERRIDE='' \
+    FM_CONFIG_OVERRIDE="$ISOLATED_CONFIG" \
     FM_SPAWN_NO_GUARD=1 \
     "$SPAWN" "$@" 2>&1
 }
 
-# Ship spawns carry an explicit delivery contract (AGENTS.md section 7); the
+# Ship spawns carry an explicit delivery contract (task-lifecycle); the
 # batch path takes one shared pair of flags for every pair.
 run_ship_spawn() {
   run_spawn "$@" --mode no-mistakes --yolo off
@@ -86,13 +93,13 @@ test_projects_path_scoping() {
     mkdir -p "$home/data" "$projects/alpha"
     git -C "$projects/alpha" init -q || fail "$label: could not initialize project fixture"
     if [ "$use_override" = yes ]; then
-      out=$(FM_ROOT_OVERRIDE='' FM_STATE_OVERRIDE='' FM_DATA_OVERRIDE='' FM_CONFIG_OVERRIDE='' \
+      out=$(FM_ROOT_OVERRIDE='' FM_STATE_OVERRIDE='' FM_DATA_OVERRIDE='' FM_CONFIG_OVERRIDE="$ISOLATED_CONFIG" \
         FM_HOME="$home" FM_PROJECTS_OVERRIDE="$projects" FM_SPAWN_NO_GUARD=1 \
         "$SPAWN" "$id" projects/alpha codex --mode no-mistakes --yolo off 2>&1)
     else
       mkdir -p "$home/projects/alpha"
       git -C "$home/projects/alpha" init -q || fail "$label: could not initialize home project fixture"
-      out=$(FM_ROOT_OVERRIDE='' FM_STATE_OVERRIDE='' FM_DATA_OVERRIDE='' FM_PROJECTS_OVERRIDE='' FM_CONFIG_OVERRIDE='' \
+      out=$(FM_ROOT_OVERRIDE='' FM_STATE_OVERRIDE='' FM_DATA_OVERRIDE='' FM_PROJECTS_OVERRIDE='' FM_CONFIG_OVERRIDE="$ISOLATED_CONFIG" \
         FM_HOME="$home" FM_SPAWN_NO_GUARD=1 \
         "$SPAWN" "$id" projects/alpha codex --mode no-mistakes --yolo off 2>&1)
     fi

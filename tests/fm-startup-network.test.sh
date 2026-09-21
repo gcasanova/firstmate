@@ -156,6 +156,8 @@ EOF
   pending=$(run_stage "$home" "$root" report)
   [ "$(printf '%s\n' "$pending" | head -1)" = "IN PROGRESS - the deferred network checks have not finished yet." ] \
     || fail "the worker was not actually still running: $pending"
+  assert_contains "$pending" "This is a normal pending state; do not load bootstrap-diagnostics or poll solely because the checks are pending." \
+    "a pending check incorrectly required bootstrap-diagnostics"
   assert_contains "$pending" "Only a FAILED or otherwise actionable result arrives as a \`check: startup-network\` wake; a clean success stays silent." \
     "the pending guidance still promised a wake for clean success"
   assert_contains "$pending" "$root/bin/fm-startup-network.sh report" \
@@ -262,6 +264,8 @@ EOF
   output=$(run_stage "$home" "$root" report)
   assert_contains "$output" "NETWORK_CHECKS: could not publish the deferred check report" \
     "report did not surface the report-publication failure: $output"
+  assert_contains "$output" "load bootstrap-diagnostics." \
+    "an actionable failure did not require bootstrap-diagnostics: $output"
   output=$(run_stage "$home" "$root" harvest --pid "$claimant")
   assert_contains "$output" "NETWORK_CHECKS: could not publish the deferred check report" \
     "harvest did not surface the report-publication failure: $output"
@@ -301,6 +305,8 @@ EOF
   [ ! -s "$home/state/.wake-queue" ] \
     || fail "a clean successful network-checks result queued a main-blocking wake: $(cat "$home/state/.wake-queue")"
   report=$(run_stage "$home" "$root" report)
+  assert_contains "$report" "The terminal result is clean; bootstrap-diagnostics is not required." \
+    "a clean completion incorrectly required bootstrap-diagnostics: $report"
   assert_contains "$report" "(silent - no problems found)" \
     "a successful result was not durably readable through report: $report"
 
@@ -316,6 +322,17 @@ EOF
   assert_contains "$report" "BOOTSTRAP_INFO: fixture completed benign work" \
     "the completed no-action fact was not retained in the durable report"
 
+  # Runtime-auto-detection notices are informational too: they remain visible
+  # but cannot turn an otherwise clean deferred stage into a diagnostic wake.
+  FM_FAKE_BOOTSTRAP_LOG="$log" \
+    FM_FAKE_BOOTSTRAP_OUT='NOTICE: fixture runtime auto-detection' \
+    run_stage "$home" "$root" run --locked 0
+  [ ! -s "$home/state/.wake-queue" ] \
+    || fail "a NOTICE-only clean success queued a main-blocking wake: $(cat "$home/state/.wake-queue")"
+  report=$(run_stage "$home" "$root" report)
+  assert_contains "$report" "The terminal result is clean; bootstrap-diagnostics is not required." \
+    "a NOTICE-only clean completion incorrectly required bootstrap-diagnostics: $report"
+
   pass "fm-startup-network: silent and explicitly informational successes never queue a main-blocking wake"
 }
 
@@ -323,7 +340,7 @@ EOF
 # test above: an actionable report (here, a MISSING: line bootstrap-diagnostics
 # would load a skill for) still reaches the wake queue even when unclaimed.
 test_an_actionable_successful_result_still_queues_a_wake() {
-  local rec home root log claimant
+  local rec home root log claimant report
   rec=$(new_world actionable-result-wakes)
   IFS='|' read -r home root log <<EOF
 $rec
@@ -341,6 +358,9 @@ EOF
     || fail "an actionable successful (state=done) result never queued a wake"
   assert_grep 'check	startup-network' "$home/state/.wake-queue" \
     "an actionable result did not reach the wake queue"
+  report=$(run_stage "$home" "$root" report)
+  assert_contains "$report" "The terminal result below is actionable; load bootstrap-diagnostics." \
+    "an actionable failure did not require bootstrap-diagnostics: $report"
 
   pass "fm-startup-network: an actionable state=done report still queues a wake"
 }

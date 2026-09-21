@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Behavior tests for the explicit per-task delivery contract (AGENTS.md section 7)
+# Behavior tests for the explicit per-task delivery contract (task-lifecycle)
 # across bin/fm-spawn.sh, bin/fm-promote.sh, and bin/fm-project-mode.sh.
 #
 # A ship task's delivery mode and yolo posture are firstmate's decision at intake,
@@ -158,9 +158,9 @@ EOF
 
 # The registry is the captain's standing posture, so dropping below its rigor is
 # allowed but never silent, while matching or exceeding it stays quiet. An
-# unregistered project resolves to the same no-mistakes standing default
-# (AGENTS.md section 7), so a downgrade there is announced too. A conditional
-# policy is excluded because both of its legs are legitimate classifications.
+# unregistered project resolves to the direct-PR standing default
+# (task-lifecycle), so direct-PR stays quiet. A conditional policy is excluded
+# because task-lifecycle must resolve it before spawning.
 test_spawn_notices_a_rigor_downgrade_against_the_registry() {
   local rec home proj fakebin out label mode registry expect registered n=0
   while IFS='|' read -r label registry mode expect registered; do
@@ -188,7 +188,7 @@ no-mistakes project shipped local-only|- proj [no-mistakes] - fixture (added 202
 no-mistakes project shipped no-mistakes|- proj [no-mistakes] - fixture (added 2026-01-01)|no-mistakes|quiet|no-mistakes
 local-only project shipped no-mistakes|- proj [local-only] - fixture (added 2026-01-01)|no-mistakes|quiet|local-only
 conditional policy shipped direct-PR|- proj [no-mistakes-prod-only] - fixture (added 2026-01-01)|direct-PR|quiet|no-mistakes-prod-only
-unregistered project resolves to the no-mistakes standing default|- other [no-mistakes] - fixture (added 2026-01-01)|direct-PR|notice|no-mistakes
+unregistered project resolves to the direct-PR standing default|- other [no-mistakes] - fixture (added 2026-01-01)|direct-PR|quiet|direct-PR
 ROWS
   pass "fm-spawn: a rigor downgrade against the registered posture is announced, never blocked"
 }
@@ -402,13 +402,14 @@ STUB
 # conditional policy, maps it to its most rigorous leg for them, and exposes the
 # raw annotation for the one caller that must tell a policy from a flat mode.
 test_project_mode_maps_the_conditional_policy() {
-  local home out err
+  local home out err status
   home="$TMP_ROOT/project-mode/home"
   mkdir -p "$home/data"
   cat > "$home/data/projects.md" <<'EOF'
 - prodproj [no-mistakes-prod-only] - fixture (added 2026-01-01)
 - yoloproj [no-mistakes-prod-only +yolo] - fixture (added 2026-01-01)
 - flatproj [direct-PR] - fixture (added 2026-01-01)
+- legacyproj - fixture (added 2026-01-01)
 - typoproj [no-mistakez] - fixture (added 2026-01-01)
 EOF
   out=$(FM_HOME="$home" "$PROJECT_MODE" prodproj 2>/dev/null)
@@ -425,11 +426,30 @@ EOF
   out=$(FM_HOME="$home" "$PROJECT_MODE" --raw flatproj 2>/dev/null)
   [ "$out" = "direct-PR off" ] || fail "--raw altered a flat registered mode (got '$out')"
 
-  out=$(FM_HOME="$home" "$PROJECT_MODE" typoproj 2>/dev/null)
-  [ "$out" = "no-mistakes off" ] || fail "a typo'd mode no longer falls back to the most rigorous default"
-  err=$(FM_HOME="$home" "$PROJECT_MODE" typoproj 2>&1 >/dev/null)
-  assert_contains "$err" "unknown mode" "a typo'd registry mode stopped warning"
-  pass "fm-project-mode: the conditional policy is accepted, mapped for mechanical callers, and readable raw"
+  out=$(FM_HOME="$home" "$PROJECT_MODE" missingproj 2>/dev/null)
+  [ "$out" = "direct-PR off" ] || fail "an unregistered project did not default to direct-PR (got '$out')"
+  out=$(FM_HOME="$home" "$PROJECT_MODE" legacyproj 2>/dev/null)
+  [ "$out" = "direct-PR off" ] || fail "a legacy project did not default to direct-PR (got '$out')"
+
+  out=$(FM_HOME="$home" "$PROJECT_MODE" typoproj 2>&1); status=$?
+  [ "$status" -ne 0 ] || fail "an unsupported explicit mode did not refuse"
+  assert_contains "$out" "unsupported delivery mode" "the explicit-mode refusal did not name the configuration error"
+  pass "fm-project-mode: the conditional policy is accepted, direct-PR is the absent default, and invalid explicit modes refuse"
+}
+
+test_spawn_refuses_invalid_registered_delivery_mode() {
+  local rec home proj fakebin out status
+  rec=$(make_home invalid-registered-mode "- proj [no-mistakez] - fixture (added 2026-01-01)")
+  IFS='|' read -r home proj fakebin <<EOF
+$rec
+EOF
+  write_brief "$home" invalid-registered-mode direct-PR
+  out=$(run_spawn "$home" "$fakebin" invalid-registered-mode "$proj" claude --mode direct-PR --yolo off)
+  status=$?
+  [ "$status" -ne 0 ] || fail "spawn accepted an invalid registered delivery mode"
+  assert_contains "$out" "cannot resolve the delivery posture" \
+    "spawn did not refuse the invalid registered delivery mode"
+  pass "fm-spawn: invalid registered delivery modes refuse before dispatch"
 }
 
 # Spawn and promotion refuse leftover Task-subsection placeholders through the
@@ -892,5 +912,6 @@ test_promote_requires_and_records_the_delivery_contract
 test_promote_refuses_a_symlinked_task_record
 test_promotion_delivers_the_real_definition_of_done
 test_project_mode_maps_the_conditional_policy
+test_spawn_refuses_invalid_registered_delivery_mode
 test_spawn_and_promote_require_filled_task_subsections
 echo "# all fm-task-delivery tests passed"
