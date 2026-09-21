@@ -333,6 +333,10 @@
       "audience": "operator-current"
     },
     {
+      "path": "docs/codex-tool-result-bound.md",
+      "audience": "operator-current"
+    },
+    {
       "path": "docs/configuration.md",
       "audience": "operator-current"
     },
