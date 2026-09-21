@@ -47,6 +47,19 @@ A registered `no-mistakes-prod-only` policy resolves to `direct-PR` unless the c
 Dropping below the registered rigor requires a reason that can be stated.
 Record the resulting mode, `yolo` merge posture, and the one-line reason for any deviation in the backlog item note.
 
+## Research routing
+
+Captain performs bounded verification locally when the likely file, symbol, or command is already known and its output is small.
+Examples include status and branch checks, short logs, CI state without logs, a targeted search in a known small path, a bounded read of an identified section, or a deterministic verification command.
+Before issuing broad discovery, delegate a scout when the task needs repository-wide reconnaissance, recursive searches likely to return many matches, broad audits, home-directory configuration searches, many source reads, verbose CI logs, dependency or API research, unfamiliar-subsystem exploration, or repeated exploratory debugging.
+The decision rule is simple: if Captain does not know where to look and must discover that first, prefer a scout.
+Do not create parallel scouts for one investigation, and prefer an idle fitting worker when reuse is already available.
+
+A research scout uses `bin/fm-brief.sh <id> <repo> --research-scout` and its brief must state the question, known constraints, relevant starting points when known, and that the scout investigates autonomously without returning a raw research dump.
+Its report is a compact handoff to Captain, not a transcript: `Conclusion/findings`, `Strongest supporting evidence`, `Relevant paths/symbols/commands`, `Risks/uncertainties`, and `Recommended next action` only.
+The report must pass `bin/fm-scout-report-check.sh` before teardown records it as completed; it is limited to 6 KiB, while detailed evidence may remain in a named artifact with targeted references from the report.
+This routes semantic discovery by policy before context is spent; the report-size boundary is deterministic.
+
 Treat file or subsystem overlap as a risk signal rather than an automatic reason to wait.
 Dispatch isolated work immediately with no concurrency cap when each change can be independently implemented and validated and the selected delivery path can reconcile ordinary rebases or conflicts.
 Serialize only for a true semantic dependency, shared mutable external state, incompatible concurrent migration, or another concrete condition that makes independent progress or reconciliation unsafe; same-file editing alone is insufficient, and genuine blockers remain durable.
