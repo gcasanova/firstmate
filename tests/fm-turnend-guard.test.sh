@@ -912,9 +912,11 @@ test_tracked_claude_entries_inert_under_grok() {
     printf '%s\n' "$target"
   }
 
+  # shellcheck disable=SC2016 # The test must preserve Claude's deferred variable expansion.
   target=$(tracked_target '"$CLAUDE_PROJECT_DIR"/bin/fm-tool-result-bound-hook.mjs')
   [ "$target" = fm-tool-result-bound-hook.mjs ] \
     || fail "did not recognize the tracked .mjs hook target"
+  # shellcheck disable=SC2016 # The test must preserve Claude's deferred variable expansion.
   target=$(tracked_target '"$CLAUDE_PROJECT_DIR"/bin/fm-tool-result-bound-hook.py')
   [ -z "$target" ] || fail "recognized unsupported tracked hook target: $target"
 
