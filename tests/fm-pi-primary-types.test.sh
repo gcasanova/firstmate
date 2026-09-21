@@ -57,6 +57,14 @@ ln -s "$PI_PACKAGE_DIR/node_modules/@types/node" "$TMP_ROOT/node_modules/@types/
 cat > "$TMP_ROOT/package.json" <<'JSON'
 {"type":"module"}
 JSON
+cat > "$TMP_ROOT/fm-context-meter-api.ts" <<'TS'
+import { createContextMeter, type ContextMeterState } from "./lib/fm-context-meter.mjs";
+
+const meter = createContextMeter(undefined, { notifiedTokens: [75_000] });
+const snapshot: ContextMeterState = meter.snapshot();
+const persisted: number[] = snapshot.notifiedTokens;
+void persisted;
+TS
 cat > "$TMP_ROOT/tsconfig.json" <<'JSON'
 {
   "compilerOptions": {
@@ -69,7 +77,7 @@ cat > "$TMP_ROOT/tsconfig.json" <<'JSON'
     "target": "ES2022",
     "types": ["node"]
   },
-  "include": [".pi/extensions/*.ts", ".pi/extensions/lib/*.ts"]
+  "include": [".pi/extensions/*.ts", ".pi/extensions/lib/*.ts", "fm-context-meter-api.ts"]
 }
 JSON
 

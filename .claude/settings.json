@@ -1,4 +1,8 @@
 {
+  "statusLine": {
+    "type": "command",
+    "command": "[ -n \"${FM_HOME:-}\" ] && exec \"$CLAUDE_PROJECT_DIR\"/bin/fm-claude-context-status.mjs || exit 0"
+  },
   "hooks": {
     "SessionStart": [
       {
