@@ -29,6 +29,7 @@ trap cleanup EXIT
 mkdir -p "$TMP_ROOT/.pi/extensions/lib" "$TMP_ROOT/lib" "$TMP_ROOT/node_modules/@earendil-works" "$TMP_ROOT/node_modules/@types"
 cp "$ROOT/.pi/extensions/fm-branch-supervision.ts" "$TMP_ROOT/.pi/extensions/fm-branch-supervision.ts"
 cp "$ROOT/.pi/extensions/fm-calm.ts" "$TMP_ROOT/.pi/extensions/fm-calm.ts"
+cp "$ROOT/.pi/extensions/fm-captain-context-meter.ts" "$TMP_ROOT/.pi/extensions/fm-captain-context-meter.ts"
 cp "$ROOT/.pi/extensions/fm-primary-pi-watch.ts" "$TMP_ROOT/.pi/extensions/fm-primary-pi-watch.ts"
 cp "$ROOT/.pi/extensions/fm-primary-tool-result-bound.ts" "$TMP_ROOT/.pi/extensions/fm-primary-tool-result-bound.ts"
 cp "$ROOT/.pi/extensions/fm-primary-turnend-guard.ts" "$TMP_ROOT/.pi/extensions/fm-primary-turnend-guard.ts"
@@ -46,6 +47,7 @@ cp "$ROOT/.pi/extensions/lib/fm-calm-working-ship-sprite.ts" "$TMP_ROOT/.pi/exte
 cp "$ROOT/.pi/extensions/lib/fm-operational-input.ts" "$TMP_ROOT/.pi/extensions/lib/fm-operational-input.ts"
 cp "$ROOT/lib/fm-tool-result-bound.mjs" "$ROOT/lib/fm-tool-result-bound.d.mts" "$TMP_ROOT/lib/"
 cp "$ROOT/lib/fm-captain-scope.mjs" "$ROOT/lib/fm-captain-scope.d.mts" "$TMP_ROOT/lib/"
+cp "$ROOT/lib/fm-context-meter.mjs" "$ROOT/lib/fm-context-meter.d.mts" "$TMP_ROOT/lib/"
 ln -s "$PI_PACKAGE_DIR" "$TMP_ROOT/node_modules/@earendil-works/pi-coding-agent"
 ln -s "$PI_PACKAGE_DIR/node_modules/@earendil-works/pi-tui" "$TMP_ROOT/node_modules/@earendil-works/pi-tui"
 ln -s "$PI_PACKAGE_DIR/node_modules/@earendil-works/pi-ai" "$TMP_ROOT/node_modules/@earendil-works/pi-ai"
@@ -55,6 +57,14 @@ ln -s "$PI_PACKAGE_DIR/node_modules/@types/node" "$TMP_ROOT/node_modules/@types/
 cat > "$TMP_ROOT/package.json" <<'JSON'
 {"type":"module"}
 JSON
+cat > "$TMP_ROOT/fm-context-meter-api.ts" <<'TS'
+import { createContextMeter, type ContextMeterState } from "./lib/fm-context-meter.mjs";
+
+const meter = createContextMeter(undefined, { notifiedTokens: [75_000] });
+const snapshot: ContextMeterState = meter.snapshot();
+const persisted: number[] = snapshot.notifiedTokens;
+void persisted;
+TS
 cat > "$TMP_ROOT/tsconfig.json" <<'JSON'
 {
   "compilerOptions": {
@@ -67,7 +77,7 @@ cat > "$TMP_ROOT/tsconfig.json" <<'JSON'
     "target": "ES2022",
     "types": ["node"]
   },
-  "include": [".pi/extensions/*.ts", ".pi/extensions/lib/*.ts"]
+  "include": [".pi/extensions/*.ts", ".pi/extensions/lib/*.ts", "fm-context-meter-api.ts"]
 }
 JSON
 
