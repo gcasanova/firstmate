@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Composes the Claude Code statusLine for a firstmate-home session.
 #
-# Registered in tracked .claude/settings.json as the statusLine command when
-# FM_HOME is set. Claude Code's statusLine renders a single line, so this
+# Registered in tracked .claude/settings.json as the statusLine command.
+# Claude Code's statusLine renders a single line, so this
 # script reads the statusLine JSON payload from stdin once, feeds the same
 # payload to both the user's own global statusLine command (read from
 # $HOME/.claude/settings.json) and bin/fm-claude-context-status.mjs, and
