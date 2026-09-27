@@ -48,6 +48,23 @@ jobs:
           set -eu
           bin/fm-install-actionlint.sh "$RUNNER_TEMP/bin"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # TEMPORARY diagnostic-only step: investigating a repeated Lint 1
+      # partition-1 kill (exit 143) with no ShellCheck findings printed.
+      # Remove once the OOM/memory-pressure hypothesis is confirmed or ruled
+      # out.
+      - name: Start memory sampler (diagnostic)
+        if: matrix.partition == 1
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/fm-lint"
+          (
+            while true; do
+              printf '=== %s ===\n' "$(date -u +%FT%TZ)" >> "$RUNNER_TEMP/fm-lint/mem-sampler.log"
+              free -h >> "$RUNNER_TEMP/fm-lint/mem-sampler.log" 2>&1 || cat /proc/meminfo >> "$RUNNER_TEMP/fm-lint/mem-sampler.log" 2>&1 || true
+              sleep 5
+            done
+          ) &
+          echo "$!" > "$RUNNER_TEMP/fm-lint/mem-sampler.pid"
       # Single owner of the lint definition (shell file set, config, version,
       # and GitHub workflow lint). Do not re-spell the checks here; keep CI
       # and the pre-push gate on this script so a self-broken ci.yml still
@@ -58,12 +75,39 @@ jobs:
           mkdir -p "$RUNNER_TEMP/fm-lint"
           bin/fm-lint.sh --partition "${{ matrix.partition }}of${{ strategy.job-total }}" \
             --telemetry "$RUNNER_TEMP/fm-lint/partition-${{ matrix.partition }}.tsv"
+      # TEMPORARY diagnostic-only step: see note above the sampler step.
+      - name: Stop memory sampler and capture kernel evidence (diagnostic)
+        if: always() && matrix.partition == 1
+        run: |
+          set -eu
+          if [ -f "$RUNNER_TEMP/fm-lint/mem-sampler.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/fm-lint/mem-sampler.pid")" 2>/dev/null || true
+          fi
+          {
+            echo "=== free -h ==="
+            free -h 2>&1 || cat /proc/meminfo 2>&1 || true
+            echo "=== ulimit -a ==="
+            ulimit -a 2>&1 || true
+            echo "=== dmesg -T (last 200) ==="
+            dmesg -T 2>&1 | tail -200 || true
+            echo "=== journalctl -k --since '10 min ago' ==="
+            journalctl -k --since "10 min ago" 2>&1 | tail -200 || true
+          } > "$RUNNER_TEMP/fm-lint/kernel-evidence.log" 2>&1 || true
       - name: Upload lint telemetry
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fm-lint-telemetry-${{ matrix.partition }}
           path: ${{ runner.temp }}/fm-lint/partition-${{ matrix.partition }}.tsv
+          if-no-files-found: warn
+      - name: Upload lint diagnostics (temporary)
+        if: always() && matrix.partition == 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: fm-lint-diagnostics-${{ matrix.partition }}
+          path: |
+            ${{ runner.temp }}/fm-lint/mem-sampler.log
+            ${{ runner.temp }}/fm-lint/kernel-evidence.log
           if-no-files-found: warn
 
   # Deterministic proof that portable parallel shards + portable serial + Herdr
